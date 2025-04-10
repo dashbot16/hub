@@ -9,9 +9,9 @@ pygame.init()
 # Game settings
 WIDTH, HEIGHT = 800, 600
 FPS = 60
-PLAYER_SPEED = 5
-BULLET_SPEED = 10
-ENEMY_SPEED = 2
+PLAYER_SPEED = 300  # Units per second
+BULLET_SPEED = 600
+ENEMY_SPEED = 100
 
 # Colors
 WHITE = (255, 255, 255)
@@ -20,9 +20,12 @@ GREEN = (50, 200, 50)
 BLACK = (0, 0, 0)
 
 # Setup screen
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.HWSURFACE | pygame.DOUBLEBUF)
 pygame.display.set_caption("Top-Down Shooter")
 clock = pygame.time.Clock()
+
+# Font for FPS display
+font = pygame.font.SysFont(None, 24)
 
 # Player class
 class Player(pygame.sprite.Sprite):
@@ -33,14 +36,19 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(WIDTH // 2, HEIGHT // 2))
         self.speed = PLAYER_SPEED
 
-    def update(self, keys):
+    def update(self, keys, dt):
         dx, dy = 0, 0
-        if keys[pygame.K_w]: dy = -self.speed
-        if keys[pygame.K_s]: dy = self.speed
-        if keys[pygame.K_a]: dx = -self.speed
-        if keys[pygame.K_d]: dx = self.speed
-        self.rect.x += dx
-        self.rect.y += dy
+        if keys[pygame.K_w]: dy = -1
+        if keys[pygame.K_s]: dy = 1
+        if keys[pygame.K_a]: dx = -1
+        if keys[pygame.K_d]: dx = 1
+
+        movement = pygame.Vector2(dx, dy)
+        if movement.length() > 0:
+            movement = movement.normalize()
+
+        self.rect.x += movement.x * self.speed * dt
+        self.rect.y += movement.y * self.speed * dt
         self.rect.clamp_ip(screen.get_rect())
 
 # Bullet class with direction-based rotation
@@ -49,15 +57,15 @@ class Bullet(pygame.sprite.Sprite):
         super().__init__()
         self.original_image = pygame.Surface((20, 6), pygame.SRCALPHA)
         pygame.draw.rect(self.original_image, WHITE, (0, 0, 20, 6))
-        
+
         self.velocity = pygame.Vector2(direction).normalize() * BULLET_SPEED
         angle = math.degrees(math.atan2(-self.velocity.y, self.velocity.x))
         self.image = pygame.transform.rotate(self.original_image, angle)
         self.rect = self.image.get_rect(center=pos)
 
-    def update(self):
-        self.rect.x += self.velocity.x
-        self.rect.y += self.velocity.y
+    def update(self, dt):
+        self.rect.x += self.velocity.x * dt
+        self.rect.y += self.velocity.y * dt
         if not screen.get_rect().colliderect(self.rect):
             self.kill()
 
@@ -68,13 +76,13 @@ class Enemy(pygame.sprite.Sprite):
         self.image = pygame.Surface((30, 30))
         self.image.fill(RED)
         self.rect = self.image.get_rect(center=(random.randint(0, WIDTH), random.randint(0, HEIGHT)))
-    
-    def update(self, player_pos):
+
+    def update(self, player_pos, dt):
         direction = pygame.Vector2(player_pos) - pygame.Vector2(self.rect.center)
         if direction.length() > 0:
             direction = direction.normalize()
-        self.rect.x += direction.x * ENEMY_SPEED
-        self.rect.y += direction.y * ENEMY_SPEED
+        self.rect.x += direction.x * ENEMY_SPEED * dt
+        self.rect.y += direction.y * ENEMY_SPEED * dt
 
 # Sprite groups
 player = Player()
@@ -89,8 +97,7 @@ pygame.time.set_timer(SPAWNENEMY, 2000)
 # Game loop
 running = True
 while running:
-    clock.tick(FPS)
-    delta_time = clock.tick(FPS) / 1000.0  # seconds
+    dt = clock.tick(FPS) / 1000.0
     keys = pygame.key.get_pressed()
 
     for event in pygame.event.get():
@@ -110,10 +117,11 @@ while running:
             all_sprites.add(bullet)
 
     # Update
-    player.update(keys)
-    bullets.update()
+    player.update(keys, dt)
+    for bullet in bullets:
+        bullet.update(dt)
     for enemy in enemies:
-        enemy.update(player.rect.center)
+        enemy.update(player.rect.center, dt)
 
     # Check bullet collision
     hits = pygame.sprite.groupcollide(enemies, bullets, True, True)
@@ -121,6 +129,11 @@ while running:
     # Drawing
     screen.fill(BLACK)
     all_sprites.draw(screen)
+
+    # Draw FPS
+    fps_text = font.render(f"FPS: {int(clock.get_fps())}", True, WHITE)
+    screen.blit(fps_text, (10, 10))
+
     pygame.display.flip()
 
 pygame.quit()
