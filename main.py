@@ -257,27 +257,29 @@ while running:
     # Drawing
     offset = apply_screen_shake()
     screen.fill(BLACK)
-    screen.blit(screen.copy(), offset)
+    temp_surface = pygame.Surface((WIDTH, HEIGHT))
+    temp_surface.fill(BLACK)
 
-    all_sprites.draw(screen)
+    all_sprites.draw(temp_surface)
     for enemy in enemies:
-        enemy.draw_health_bar(screen)
+        enemy.draw_health_bar(temp_surface)
     for p in particles:
-        p.draw(screen)
+        p.draw(temp_surface)
 
-    draw_player_health_bar(screen, player)
+    draw_player_health_bar(temp_surface, player)
 
     fps_text = font.render(f"FPS: {int(clock.get_fps())}", True, WHITE)
-    screen.blit(fps_text, (10, 10))
+    temp_surface.blit(fps_text, (10, 10))
 
     if game_over:
         over_text = game_over_font.render("GAME OVER", True, RED)
-        screen.blit(over_text, (WIDTH // 2 - over_text.get_width() // 2, HEIGHT // 2 - over_text.get_height() // 2))
+        temp_surface.blit(over_text, (WIDTH // 2 - over_text.get_width() // 2, HEIGHT // 2 - over_text.get_height() // 2))
 
     if paused and not game_over:
         pause_text = pause_font.render("PAUSED", True, WHITE)
-        screen.blit(pause_text, (WIDTH // 2 - pause_text.get_width() // 2, HEIGHT // 2 - pause_text.get_height() // 2))
+        temp_surface.blit(pause_text, (WIDTH // 2 - pause_text.get_width() // 2, HEIGHT // 2 - pause_text.get_height() // 2))
 
+    screen.blit(temp_surface, offset)
     pygame.display.flip()
 
 pygame.quit()
